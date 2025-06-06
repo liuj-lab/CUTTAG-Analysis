@@ -1,0 +1,62 @@
+#!/bin/bash
+#SBATCH --job-name=computeMatrix_TSS
+#SBATCH --output=cm_TSS_%A_%a.out
+#SBATCH --error=cm_TSS_%A_%a.err
+#SBATCH --time=12:00:00
+#SBATCH --mem=16G
+#SBATCH --cpus-per-task=4
+#SBATCH --partition=short
+#SBATCH --array=0-<N-1>  # Replace <N-1> with actual number - 1
+
+set -euo pipefail
+echo "[$SLURM_ARRAY_JOB_ID:$SLURM_ARRAY_TASK_ID] Starting on $(hostname) at $(date)"
+
+
+
+
+
+# activate conda environment
+source PATHTO/conda.sh
+conda activate bioenv
+
+# Directories #CHANGE WHERE EACH FILE IS LOCATED
+BAM_DIR="/c4/home/kraval/fix_AH/"
+REF_BED="/c4/home/kraval/fix_AH/practice_heat/hg38_TSS_clean.bed"  # DEPENDING ON IF YOU USED MM39 or HG38, change your reference bed file accordingly
+OUT_DIR="/c4/home/kraval/fix_AH/practice_heat"
+
+
+
+# Gather BAM files
+mapfile -t BAMS < <(find "$BAM_DIR" -name "*.rmdup.bw" | sort)
+
+if [ ${#BAMS[@]} -eq 0 ]; then
+  echo "ERROR: No BAM files found in $BAM_DIR" >&2
+  exit 1
+fi
+
+# Check bounds
+if [ "$SLURM_ARRAY_TASK_ID" -ge "${#BAMS[@]}" ]; then
+  echo "ERROR: SLURM_ARRAY_TASK_ID=$SLURM_ARRAY_TASK_ID out of range (max ${#BAMS[@]})" >&2
+  exit 1
+fi
+
+# Select BAM
+BAM="${BAMS[$SLURM_ARRAY_TASK_ID]}"
+BASE=$(basename "$BAM" .rmdup.bw)
+echo "[$SLURM_ARRAY_JOB_ID:$SLURM_ARRAY_TASK_ID] Processing $BASE"
+
+# Run computeMatrix
+computeMatrix reference-point \
+  --referencePoint TSS \
+  -b 3000 -a 3000 \
+  -R "$REF_BED" \
+  -S "$BAM" \
+  --binSize 50 \
+  --skipZeros \
+  --missingDataAsZero \
+  -o "$OUT_DIR/${BASE}_matrix.gz" \
+  --outFileNameMatrix "$OUT_DIR/${BASE}_matrix.tab"
+
+echo "[$SLURM_ARRAY_JOB_ID:$SLURM_ARRAY_TASK_ID] Done $BASE at $(date)"
+
+

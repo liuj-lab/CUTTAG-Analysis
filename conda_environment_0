@@ -14,7 +14,7 @@ conda create -y -n bioenv -c bioconda -c conda-forge \
 conda activate bioenv
 
 # install MACS2 via pip 
-pip install macs2
+pip install MACS2
 
 #confirm all neccesary packages are downloaded
 

@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# activate conda environment
+source /pathto/conda.sh
+conda activate bioenv
+
+# move to the directory where FASTQ files are located
+cd <> || exit 1
+
+
+mkdir -p fastqc_output
+
+
+fastqc *.fastq.gz -o fastqc_output --threads 4
+

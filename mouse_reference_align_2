@@ -1,0 +1,22 @@
+#!/bin/bash
+#SBATCH --job-name=build_bt2_index
+#SBATCH --output=build_bt2_index_%j.out
+#SBATCH --error=build_bt2_index_%j.err
+#SBATCH --time=03:50:00
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=16G
+
+
+module load CBI samtools/1.20 bowtie2/2.5.3
+
+wget https://ftp.ensembl.org/pub/release-111/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.primary_assembly.fa.gz
+gunzip Mus_musculus.GRCm39.dna.primary_assembly.fa.gz
+
+
+
+
+# Run Bowtie2 index build
+bowtie2-build --threads 4 Mus_musculus.GRCm39.dna.primary_assembly.fa mm39_index
+
+
+

@@ -1,6 +1,10 @@
-#!/bin/bash
 
-# activate conda environment
+
+# activate conda environment for FASTQC quality control
+
+#to find /pathto/conda.sh do ls ~/miniforge3/etc/profile.d/conda.sh
+#paste the output below
+
 source /pathto/conda.sh
 conda activate bioenv
 
@@ -11,5 +15,5 @@ cd <> || exit 1
 mkdir -p fastqc_output
 
 
-fastqc *.fastq.gz -o fastqc_output --threads 4
+fastqc *.fastq.gz -o fastqc_output 
 

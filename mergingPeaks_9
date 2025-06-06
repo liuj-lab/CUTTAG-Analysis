@@ -1,0 +1,30 @@
+# get to the path of your peak bed files that were generated from your .broadPeak files
+
+source PATHTO/conda.sh #change your directory of where conda.sh is located
+conda activate bioenv
+
+cd PATHTO/macs_beds # change your directory to where your newly generated  
+
+cat *_peaks.bed | cut -f1-3 > all_peaks.bed
+sort -k1,1 -k2,2n all_peaks.bed > all_peaks.sorted.bed
+bedtools merge -i all_peaks.sorted.bed > master_peaks.bed
+
+#Get an annotation file for hg38 and gunzip 
+wget https://ftp.ensembl.org/pub/release-111/gtf/homo_sapiens/Homo_sapiens.GRCh38.111.gtf.gz
+gunzip Homo_sapiens.GRCh38.111.gtf.gz
+
+#Convert its format, similar to a bed file for bedtools closest
+
+# extracting gene reigon from gtf and convert to BED
+awk '$3 == "gene"' Homo_sapiens.GRCh38.111.gtf | \
+  awk 'BEGIN{OFS="\t"} {
+    match($0, /gene_name "([^"]+)"/, a);
+    print $1, $4-1, $5, a[1], ".", $7
+  }' > genes.hg38.bed
+
+sort -k1,1 -k2,2n genes.hg38.bed > genes.hg38.sorted.bed
+
+sort -k1,1 -k2,2n master_peaks.bed > master_peaks.sorted.bed
+
+
+bedtools closest -a master_peaks.sorted.bed -b genes.hg38.sorted.bed -D a > master_peaks.annotated.bed

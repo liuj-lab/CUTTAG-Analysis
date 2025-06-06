@@ -1,0 +1,53 @@
+#!/bin/bash
+#SBATCH --job-name=plotHeatmap
+#SBATCH --output=plotHeatmap_%A_%a.out
+#SBATCH --error=plotHeatmap_%A_%a.err
+#SBATCH --time=04:00:00
+#SBATCH --mem=8G
+#SBATCH --cpus-per-task=2
+#SBATCH --partition=short
+#SBATCH --array=0-<N-1> # N is the total matrix gz files
+
+set -euo pipefail
+echo "[$SLURM_ARRAY_JOB_ID:$SLURM_ARRAY_TASK_ID] Starting on $(hostname) at $(date)"
+
+# Activate environment
+source PATHTO/conda.sh
+conda activate bioenv
+
+# Set directories
+MATRIX_DIR="PATHTO/gz"
+OUT_DIR="${MATRIX_DIR}/heatmaps"
+mkdir -p "$OUT_DIR"
+
+# Get matrix files
+mapfile -t MATRICES < <(find "$MATRIX_DIR" -maxdepth 1 -name "*_matrix.gz" | sort)
+
+# Check bounds
+if [ "${SLURM_ARRAY_TASK_ID}" -ge "${#MATRICES[@]}" ]; then
+  echo "SLURM_ARRAY_TASK_ID=$SLURM_ARRAY_TASK_ID is out of bounds." >&2
+  exit 1
+fi
+
+MATRIX="${MATRICES[$SLURM_ARRAY_TASK_ID]}"
+BASENAME=$(basename "$MATRIX" _matrix.gz)
+echo "[$SLURM_ARRAY_JOB_ID:$SLURM_ARRAY_TASK_ID] Plotting heatmap for $BASENAME]"
+
+plotHeatmap \
+  -m "$MATRIX" \
+  -out "$OUT_DIR/${BASENAME}_heatmap.png" \
+  --sortUsing sum \
+  --startLabel "Peak Start" \
+  --endLabel "Peak End" \
+  --xAxisLabel "" \
+  --regionsLabel "Peaks" \
+  --samplesLabel "${BASENAME}" \
+  --colorMap RdBu_r \
+  --zMin 0 --zMax 0.1 \
+  --heatmapWidth 8 \
+  --heatmapHeight 10 \
+  --dpi 300
+
+echo "[$SLURM_ARRAY_JOB_ID:$SLURM_ARRAY_TASK_ID] Done at $(date)"
+
+

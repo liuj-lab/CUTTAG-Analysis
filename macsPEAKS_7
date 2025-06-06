@@ -1,0 +1,55 @@
+#!/bin/bash
+#SBATCH --job-name=macs2_peaks
+#SBATCH --output=macs2_%j.out
+#SBATCH --error=macs2_%j.err
+#SBATCH --time=02:50:00       
+#SBATCH --ntasks=2
+#SBATCH --cpus-per-task=4     
+#SBATCH --mem=16G              
+
+# activate conda environment
+source PATHTO/conda.sh
+conda activate bioenv
+
+# go tothe  BAM directory
+cd PATHTO/bam_files || exit 1
+
+# define output directory
+OUTDIR="path/macs" #substitute your directory for bam_files with path
+mkdir -p "$OUTDIR"
+
+# Define controls
+CONTROL_REP1="SF7996_Coff_sgScrambled_H3K9me3_1_S194_L008.rmdup.bam"
+CONTROL_REP2="SF7996_Coff_sgScrambled_H3K9me3_2_S195_L008.rmdup.bam"
+
+# Define sgTERT samples and their labels
+samples=(
+  "SF7996_Coff_sgTERT_pooledCi_cloneA2_H3K9me3_1_S198_L008.rmdup.bam cloneA2_rep1"
+  "SF7996_Coff_sgTERT_pooledCi_cloneA2_H3K9me3_2_S199_L008.rmdup.bam cloneA2_rep2"
+  "SF7996_Coff_sgTERT_pooledCi_cloneA4_H3K9me3_1_S200_L008.rmdup.bam cloneA4_rep1"
+  "SF7996_Coff_sgTERT_pooledCi_cloneA4_H3K9me3_2_S201_L008.rmdup.bam cloneA4_rep2"
+  "SF7996_Coff_sgTERT_pooledCi_polycolonal_H3K9me3_1_S196_L008.rmdup.bam polycolonal_rep1"
+  "SF7996_Coff_sgTERT_pooledCi_polycolonal_H3K9me3_2_S197_L008.rmdup.bam polycolonal_rep2"
+)
+
+# Run MACS2 for each sample
+for entry in "${samples[@]}"; do
+  read -r CHIP_BAM LABEL <<< "$entry"
+
+  # Match to the correct control
+  if [[ "$LABEL" == *_rep1 ]]; then
+    CONTROL_BAM="$CONTROL_REP1"
+  elif [[ "$LABEL" == *_rep2 ]]; then
+    CONTROL_BAM="$CONTROL_REP2"
+  else
+    echo "Cannot determine control for $LABEL"
+    continue
+  fi
+
+  echo "Calling peaks for $LABEL..."
+  macs2 callpeak -t "$CHIP_BAM" \
+    -c "$CONTROL_BAM" \
+    -f BAM -g hs -n "$LABEL" \
+    --broad --broad-cutoff 0.1 --keep-dup all -q 0.05 \
+    --outdir "$OUTDIR"
+done

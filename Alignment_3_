@@ -1,0 +1,65 @@
+#!/bin/bash
+#SBATCH --job-name=cuttag_align
+#SBATCH --output=cuttag_align_%A_%a.out
+#SBATCH --error=cuttag_align_%A_%a.err
+#SBATCH --time=90:00:00
+#SBATCH --cpus-per-task=6
+#SBATCH --mem=32G
+#SBATCH --array=0-<N-1>  # N corresponds to the number of FASTQC read pairs you have. Subtract the total number of read pairs by 1 for array generation
+
+module load CBI samtools/1.20 bowtie2/2.5.3
+
+
+--------------------------------------------------------------------------------
+# directory output PUT YOUR directory(where all fastqc files are) in the WORKDIR variable
+
+# ALSO PLEASE CHECK the BT2_INDEX Variable to make the neccesary changes of using hg38 or mm39
+--------------------------------------------------------------------------------
+WORKDIR="PATHTOFASTQC"
+BT2_INDEX="${WORKDIR}/hg38_index"
+THREADS=12
+OUTPUT_DIR="${WORKDIR}/bam_files"
+--------------------------------------------------------------------------------
+
+mkdir -p ${OUTPUT_DIR}
+
+# move to where your fastqc files are
+cd ${WORKDIR}
+
+# get input files
+FILES=(*_R1_001.fastq.gz)
+R1=${FILES[$SLURM_ARRAY_TASK_ID]}
+R2=${R1/_R1_001.fastq.gz/_R2_001.fastq.gz}
+SAMPLE=${R1%%_R1_001.fastq.gz}
+
+echo "=== Processing ${SAMPLE} ==="
+echo "R1: ${R1}"
+echo "R2: ${R2}"
+
+# Step 1: Align with Bowtie2
+bowtie2 --sensitive -x ${BT2_INDEX} -1 ${R1} -2 ${R2} -S ${SAMPLE}.sam --threads ${THREADS}
+
+# Step 2: Convert SAM to BAM and name-sort
+samtools view -@ ${THREADS} -bS ${SAMPLE}.sam | \
+  samtools sort -n -@ ${THREADS} -o ${SAMPLE}.namesort.bam
+
+# Step 3: Fixmate to add MC and MQ tags
+samtools fixmate -m ${SAMPLE}.namesort.bam ${SAMPLE}.fixmate.bam
+
+# Step 4: Coordinate sort
+samtools sort -@ ${THREADS} -o ${SAMPLE}.coordsort.bam ${SAMPLE}.fixmate.bam
+
+# Step 5: Remove duplicates
+samtools markdup -r ${SAMPLE}.coordsort.bam ${SAMPLE}.rmdup.bam
+
+# Step 6: Index BAM
+samtools index ${SAMPLE}.rmdup.bam
+
+# Step 7: Move final BAM and BAI files to output directory
+mv ${SAMPLE}.rmdup.bam ${OUTPUT_DIR}/
+mv ${SAMPLE}.rmdup.bam.bai ${OUTPUT_DIR}/
+
+# Step 8: Clean up intermediate files
+rm ${SAMPLE}.sam ${SAMPLE}.namesort.bam ${SAMPLE}.fixmate.bam ${SAMPLE}.coordsort.bam
+
+echo "=== ${SAMPLE} alignment complete ==="

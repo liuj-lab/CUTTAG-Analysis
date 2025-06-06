@@ -1,0 +1,26 @@
+# Download Miniforge to current directory
+curl -L -O https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-MacOSX-arm64.sh
+
+# install Miniforge to ./miniforge3 locally
+bash Miniforge3-MacOSX-arm64.sh -b -p ./miniforge3
+
+# initalize conda in this shell
+eval "$(./miniforge3/bin/conda shell.bash hook)"
+
+# Create and activate bioenv environment
+conda create -y -n bioenv -c bioconda -c conda-forge \
+    bowtie2 samtools fastqc deeptools
+
+conda activate bioenv
+
+# install MACS2 via pip 
+pip install macs2
+
+#confirm all neccesary packages are downloaded
+
+echo " Conda env: $(conda info --envs | grep bioenv)"
+echo " Bowtie2: $(bowtie2 --version | head -n 1)"
+echo " Samtools: $(samtools --version | head -n 1)"
+echo " FastQC: $(fastqc --version)"
+echo " deepTools: $(bamCoverage --version)"
+echo " MACS2: $(macs2 --version)"

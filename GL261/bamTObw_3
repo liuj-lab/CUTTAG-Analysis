@@ -1,0 +1,37 @@
+#!/bin/bash 
+#SBATCH --job-name=bam2bw 
+#SBATCH --output=bam2bw_%A_%a.out 
+#SBATCH --error=bam2bw_%A_%a.err 
+#SBATCH --time=06:00:00 
+#SBATCH --mem=8G 
+#SBATCH --cpus-per-task=4 
+#SBATCH --partition=short 
+#SBATCH --array=0-<N-1> # N CORRESPONDS to total number of bam files, subtract N-1 for array generation
+
+set -euo pipefail
+echo "[$SLURM_ARRAY_JOB_ID:$SLURM_ARRAY_TASK_ID] starting on $(hostname) at $(date)"
+
+# load in conda environment
+source PATHTO/conda.sh
+conda activate bioenv
+
+# input your directories for where your bam files are your output
+BAM_DIR=""
+OUT_DIR="$BAM_DIR/bw_files"
+mkdir -p "$OUT_DIR"
+
+# Collect BAMs
+mapfile -t BAMS < <(find "$BAM_DIR" -name "*.rmdup.bam" | sort)
+BAM=${BAMS[$SLURM_ARRAY_TASK_ID]}
+BASE=$(basename "$BAM" .bam)
+echo "Processing $BASE"
+
+# Run bamCoverage
+bamCoverage \
+  -b "$BAM" \
+  -o "$OUT_DIR/${BASE}.bw" \
+  --binSize 10 \
+  --normalizeUsing CPM \
+  --ignoreDuplicates \
+
+echo "[$SLURM_ARRAY_JOB_ID:$SLURM_ARRAY_TASK_ID] done $BASE at $(date)"
